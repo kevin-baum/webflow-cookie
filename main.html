@@ -1,0 +1,791 @@
+<!-- 
+=================================================================
+COOKIE CONSENT MIT DEEP SCANNER
+Erkennt ALLE Cookies, Scripts und Tracking-Tools inkl. Webflow
+=================================================================
+-->
+
+<!-- CSS in HEAD einfügen -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orestbida/cookieconsent@3.1.0/dist/cookieconsent.css">
+
+<style>
+/* Cookie Settings Button */
+#cookie-settings-btn {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: #2d3748;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 2147483647 !important;
+    transition: all 0.3s ease;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#cookie-settings-btn:hover {
+    background: #1a202c;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+    #cookie-settings-btn {
+        bottom: 10px;
+        left: 10px;
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+}
+
+.pm__badge {
+    background: #48bb78;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+.cookie-details {
+    background: #f7fafc;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 10px 0;
+    font-size: 13px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.cookie-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 10px 12px;
+    margin: 6px 0;
+    background: white;
+    border-radius: 4px;
+    border-left: 3px solid #4299e1;
+}
+
+.cookie-name {
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 13px;
+    word-break: break-word;
+}
+
+.cookie-info {
+    color: #718096;
+    font-size: 11px;
+    margin-top: 3px;
+}
+
+.cookie-purpose {
+    display: inline-block;
+    background: #e6fffa;
+    color: #234e52;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    margin-top: 4px;
+}
+
+.cookie-source {
+    display: inline-block;
+    background: #fef5e7;
+    color: #856404;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    margin-top: 4px;
+    margin-left: 4px;
+}
+
+.cookie-count {
+    background: #4299e1;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.scan-status {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 10px 0;
+    font-size: 12px;
+    font-weight: 500;
+}
+</style>
+
+<!-- JAVASCRIPT - VOR </body> oder in Footer Code einfügen -->
+<script type="module">
+import 'https://cdn.jsdelivr.net/gh/orestbida/cookieconsent@3.1.0/dist/cookieconsent.umd.js';
+
+// ===================================
+// KONFIGURATION
+// ===================================
+const CONFIG = {
+    privacyPolicyUrl: '/datenschutz',
+    termsUrl: '/impressum',
+    deepScanInterval: 2000, // Alle 2 Sekunden nach neuen Cookies suchen
+};
+
+// ===================================
+// DEEP COOKIE & SCRIPT SCANNER
+// ===================================
+class DeepCookieScanner {
+    constructor() {
+        this.scannedCookies = {
+            necessary: [],
+            functionality: [],
+            analytics: [],
+            marketing: []
+        };
+        
+        this.detectedScripts = new Set();
+        this.detectedTools = new Set();
+        
+        // Erweiterte Cookie-Datenbank
+        this.cookieDatabase = {
+            // Webflow spezifisch
+            'wf_': { purpose: 'Webflow Session', duration: 'Session', category: 'necessary', tool: 'Webflow' },
+            'webflow': { purpose: 'Webflow Tracking', duration: '1 Jahr', category: 'necessary', tool: 'Webflow' },
+            
+            // Google Analytics
+            '_ga': { purpose: 'Google Analytics ID', duration: '2 Jahre', category: 'analytics', tool: 'Google Analytics' },
+            '_gid': { purpose: 'Google Analytics Session', duration: '24 Stunden', category: 'analytics', tool: 'Google Analytics' },
+            '_gat': { purpose: 'Google Analytics Throttle', duration: '1 Minute', category: 'analytics', tool: 'Google Analytics' },
+            '_gat_gtag': { purpose: 'Google Analytics', duration: '1 Minute', category: 'analytics', tool: 'Google Analytics' },
+            '__utma': { purpose: 'Google Analytics (alt)', duration: '2 Jahre', category: 'analytics', tool: 'Google Analytics' },
+            '__utmb': { purpose: 'Google Analytics (alt)', duration: '30 Min', category: 'analytics', tool: 'Google Analytics' },
+            '__utmc': { purpose: 'Google Analytics (alt)', duration: 'Session', category: 'analytics', tool: 'Google Analytics' },
+            '__utmz': { purpose: 'Google Analytics (alt)', duration: '6 Monate', category: 'analytics', tool: 'Google Analytics' },
+            '__utmt': { purpose: 'Google Analytics (alt)', duration: '10 Min', category: 'analytics', tool: 'Google Analytics' },
+            '_dc_gtm_': { purpose: 'Google Tag Manager', duration: '1 Min', category: 'analytics', tool: 'Google Tag Manager' },
+            
+            // Google Ads & Marketing
+            '__gads': { purpose: 'Google Ads', duration: '1 Jahr', category: 'marketing', tool: 'Google Ads' },
+            '__gac_': { purpose: 'Google Ads Conversion', duration: '90 Tage', category: 'marketing', tool: 'Google Ads' },
+            '_gcl_au': { purpose: 'Google Ads Auto-tag', duration: '90 Tage', category: 'marketing', tool: 'Google Ads' },
+            '_gcl_aw': { purpose: 'Google Ads Conversion', duration: '90 Tage', category: 'marketing', tool: 'Google Ads' },
+            'IDE': { purpose: 'Google DoubleClick', duration: '1 Jahr', category: 'marketing', tool: 'Google DoubleClick' },
+            'test_cookie': { purpose: 'Google DoubleClick Test', duration: '15 Min', category: 'marketing', tool: 'Google DoubleClick' },
+            'NID': { purpose: 'Google Preferences', duration: '6 Monate', category: 'marketing', tool: 'Google' },
+            '1P_JAR': { purpose: 'Google Ads Optimization', duration: '1 Monat', category: 'marketing', tool: 'Google Ads' },
+            
+            // Facebook / Meta
+            '_fbp': { purpose: 'Facebook Pixel', duration: '90 Tage', category: 'marketing', tool: 'Facebook Pixel' },
+            '_fbc': { purpose: 'Facebook Click ID', duration: '90 Tage', category: 'marketing', tool: 'Facebook Pixel' },
+            'fr': { purpose: 'Facebook Ads', duration: '90 Tage', category: 'marketing', tool: 'Facebook' },
+            'datr': { purpose: 'Facebook Security', duration: '2 Jahre', category: 'marketing', tool: 'Facebook' },
+            'sb': { purpose: 'Facebook Login', duration: '2 Jahre', category: 'marketing', tool: 'Facebook' },
+            'c_user': { purpose: 'Facebook User ID', duration: '1 Jahr', category: 'marketing', tool: 'Facebook' },
+            
+            // Hotjar
+            '_hjid': { purpose: 'Hotjar User ID', duration: '1 Jahr', category: 'analytics', tool: 'Hotjar' },
+            '_hjFirstSeen': { purpose: 'Hotjar First Visit', duration: 'Session', category: 'analytics', tool: 'Hotjar' },
+            '_hjIncludedInPageviewSample': { purpose: 'Hotjar Sample', duration: '30 Min', category: 'analytics', tool: 'Hotjar' },
+            '_hjAbsoluteSessionInProgress': { purpose: 'Hotjar Session', duration: '30 Min', category: 'analytics', tool: 'Hotjar' },
+            '_hjIncludedInSessionSample': { purpose: 'Hotjar Session Sample', duration: '30 Min', category: 'analytics', tool: 'Hotjar' },
+            
+            // Segment
+            'ajs_': { purpose: 'Segment Analytics', duration: '1 Jahr', category: 'analytics', tool: 'Segment' },
+            
+            // Amplitude
+            'amplitude_': { purpose: 'Amplitude Analytics', duration: '1 Jahr', category: 'analytics', tool: 'Amplitude' },
+            
+            // Mixpanel
+            'mp_': { purpose: 'Mixpanel Analytics', duration: '1 Jahr', category: 'analytics', tool: 'Mixpanel' },
+            
+            // LinkedIn
+            'li_': { purpose: 'LinkedIn Insights', duration: '90 Tage', category: 'marketing', tool: 'LinkedIn Insight Tag' },
+            'lidc': { purpose: 'LinkedIn Routing', duration: '1 Tag', category: 'marketing', tool: 'LinkedIn' },
+            'bcookie': { purpose: 'LinkedIn Browser ID', duration: '2 Jahre', category: 'marketing', tool: 'LinkedIn' },
+            
+            // YouTube
+            'YSC': { purpose: 'YouTube Session', duration: 'Session', category: 'marketing', tool: 'YouTube' },
+            'VISITOR_INFO1_LIVE': { purpose: 'YouTube Visitor', duration: '6 Monate', category: 'marketing', tool: 'YouTube' },
+            'GPS': { purpose: 'YouTube Mobile', duration: '30 Min', category: 'marketing', tool: 'YouTube' },
+            'PREF': { purpose: 'YouTube Preferences', duration: '8 Monate', category: 'marketing', tool: 'YouTube' },
+            
+            // Twitter/X
+            'auth_token': { purpose: 'Twitter Auth', duration: '2 Jahre', category: 'marketing', tool: 'Twitter/X' },
+            'personalization_id': { purpose: 'Twitter Tracking', duration: '2 Jahre', category: 'marketing', tool: 'Twitter/X' },
+            
+            // Stripe
+            '__stripe_': { purpose: 'Stripe Payment', duration: '1 Jahr', category: 'necessary', tool: 'Stripe' },
+            
+            // WordPress (falls verwendet)
+            'wordpress_': { purpose: 'WordPress Session', duration: 'Session', category: 'necessary', tool: 'WordPress' },
+            'wp-settings': { purpose: 'WordPress Settings', duration: '1 Jahr', category: 'functionality', tool: 'WordPress' },
+            'comment_': { purpose: 'WordPress Comments', duration: '1 Jahr', category: 'functionality', tool: 'WordPress' },
+            
+            // Sprache & Lokalisierung
+            'pll_language': { purpose: 'Polylang Language', duration: '1 Jahr', category: 'functionality', tool: 'Polylang' },
+            'googtrans': { purpose: 'Google Translate', duration: 'Session', category: 'functionality', tool: 'Google Translate' },
+            
+            // Cookie Consent
+            'cc_cookie': { purpose: 'Cookie Consent', duration: '6 Monate', category: 'necessary', tool: 'CookieConsent' },
+            'cookieconsent_status': { purpose: 'Cookie Consent Status', duration: '1 Jahr', category: 'necessary', tool: 'Cookie Consent' },
+            
+            // Session
+            'PHPSESSID': { purpose: 'PHP Session', duration: 'Session', category: 'necessary', tool: 'PHP' },
+            'JSESSIONID': { purpose: 'Java Session', duration: 'Session', category: 'necessary', tool: 'Java' },
+            'ASP.NET_SessionId': { purpose: 'ASP.NET Session', duration: 'Session', category: 'necessary', tool: 'ASP.NET' },
+            
+            // CSRF Protection
+            'csrf_token': { purpose: 'CSRF Protection', duration: 'Session', category: 'necessary', tool: 'Security' },
+            'XSRF-TOKEN': { purpose: 'XSRF Protection', duration: 'Session', category: 'necessary', tool: 'Security' },
+        };
+        
+        // Script-Domains für Tool-Erkennung
+        this.scriptDomains = {
+            'googletagmanager.com': 'Google Tag Manager',
+            'google-analytics.com': 'Google Analytics',
+            'googleadservices.com': 'Google Ads',
+            'doubleclick.net': 'Google DoubleClick',
+            'facebook.net': 'Facebook',
+            'connect.facebook.net': 'Facebook Pixel',
+            'hotjar.com': 'Hotjar',
+            'segment.com': 'Segment',
+            'segment.io': 'Segment',
+            'amplitude.com': 'Amplitude',
+            'mixpanel.com': 'Mixpanel',
+            'linkedin.com': 'LinkedIn',
+            'youtube.com': 'YouTube',
+            'twitter.com': 'Twitter/X',
+            'stripe.com': 'Stripe',
+            'webflow.com': 'Webflow',
+            'webflow.io': 'Webflow',
+        };
+    }
+
+    // Deep Scan durchführen
+    async performDeepScan() {
+        console.log('🔍 Starte Deep Scan...');
+        
+        // 1. Browser Cookies scannen
+        this.scanBrowserCookies();
+        
+        // 2. LocalStorage & SessionStorage scannen
+        this.scanStorage();
+        
+        // 3. Alle Scripts auf der Seite analysieren
+        await this.scanScripts();
+        
+        // 4. Iframes scannen
+        this.scanIframes();
+        
+        // 5. Network Requests überwachen
+        this.monitorNetworkRequests();
+        
+        console.log('✅ Deep Scan abgeschlossen');
+        console.log('📊 Gefundene Tools:', Array.from(this.detectedTools));
+        
+        return this.scannedCookies;
+    }
+
+    scanBrowserCookies() {
+        const cookies = document.cookie.split(';');
+        const foundCookies = new Set();
+
+        cookies.forEach(cookie => {
+            const [name] = cookie.trim().split('=');
+            if (name && !foundCookies.has(name)) {
+                foundCookies.add(name);
+                const cookieData = this.analyzeCookie(name, 'cookie');
+                this.scannedCookies[cookieData.category].push(cookieData);
+                if (cookieData.tool) this.detectedTools.add(cookieData.tool);
+            }
+        });
+    }
+
+    scanStorage() {
+        // LocalStorage
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            const cookieData = this.analyzeCookie(key, 'localStorage');
+            this.scannedCookies[cookieData.category].push(cookieData);
+            if (cookieData.tool) this.detectedTools.add(cookieData.tool);
+        }
+
+        // SessionStorage
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            const cookieData = this.analyzeCookie(key, 'sessionStorage');
+            this.scannedCookies[cookieData.category].push(cookieData);
+            if (cookieData.tool) this.detectedTools.add(cookieData.tool);
+        }
+    }
+
+    async scanScripts() {
+        const scripts = document.querySelectorAll('script[src]');
+        
+        scripts.forEach(script => {
+            const src = script.src;
+            
+            // Prüfe bekannte Domains
+            for (const [domain, tool] of Object.entries(this.scriptDomains)) {
+                if (src.includes(domain)) {
+                    this.detectedTools.add(tool);
+                    this.detectedScripts.add(src);
+                    
+                    // Füge als Cookie-Info hinzu
+                    const category = this.getToolCategory(tool);
+                    this.scannedCookies[category].push({
+                        name: `📜 ${tool} Script`,
+                        purpose: `Externes Script von ${tool}`,
+                        duration: 'Runtime',
+                        category: category,
+                        type: 'script',
+                        tool: tool,
+                        source: this.getDomain(src)
+                    });
+                }
+            }
+        });
+
+        // Inline Scripts analysieren
+        const inlineScripts = document.querySelectorAll('script:not([src])');
+        inlineScripts.forEach(script => {
+            const content = script.textContent;
+            
+            // Suche nach bekannten Tracking-Code-Patterns
+            if (content.includes('gtag(') || content.includes('ga(')) {
+                this.detectedTools.add('Google Analytics');
+            }
+            if (content.includes('fbq(')) {
+                this.detectedTools.add('Facebook Pixel');
+            }
+            if (content.includes('_hjSettings')) {
+                this.detectedTools.add('Hotjar');
+            }
+            if (content.includes('analytics.identify') || content.includes('analytics.track')) {
+                this.detectedTools.add('Segment');
+            }
+        });
+    }
+
+    scanIframes() {
+        const iframes = document.querySelectorAll('iframe[src]');
+        
+        iframes.forEach(iframe => {
+            const src = iframe.src;
+            
+            for (const [domain, tool] of Object.entries(this.scriptDomains)) {
+                if (src.includes(domain)) {
+                    this.detectedTools.add(tool);
+                }
+            }
+        });
+    }
+
+    monitorNetworkRequests() {
+        // Performance API nutzen um Requests zu erkennen
+        if (window.performance && window.performance.getEntriesByType) {
+            const resources = window.performance.getEntriesByType('resource');
+            
+            resources.forEach(resource => {
+                for (const [domain, tool] of Object.entries(this.scriptDomains)) {
+                    if (resource.name.includes(domain)) {
+                        this.detectedTools.add(tool);
+                    }
+                }
+            });
+        }
+    }
+
+    analyzeCookie(name, storageType = 'cookie') {
+        // Prüfe exakte Übereinstimmungen
+        if (this.cookieDatabase[name]) {
+            const data = this.cookieDatabase[name];
+            return {
+                name: name,
+                purpose: data.purpose,
+                duration: data.duration,
+                category: data.category,
+                type: storageType,
+                tool: data.tool,
+                source: 'Database'
+            };
+        }
+
+        // Prüfe Teilübereinstimmungen
+        for (const [pattern, data] of Object.entries(this.cookieDatabase)) {
+            if (name.toLowerCase().includes(pattern.toLowerCase())) {
+                return {
+                    name: name,
+                    purpose: data.purpose,
+                    duration: data.duration,
+                    category: data.category,
+                    type: storageType,
+                    tool: data.tool,
+                    source: 'Database'
+                };
+            }
+        }
+
+        // Fallback: Intelligente Kategorisierung
+        const category = this.guessCategory(name);
+        const tool = this.guessTool(name);
+        
+        return {
+            name: name,
+            purpose: this.guessPurpose(name),
+            duration: storageType === 'sessionStorage' ? 'Session' : '1 Jahr',
+            category: category,
+            type: storageType,
+            tool: tool,
+            source: 'Auto-detected'
+        };
+    }
+
+    guessCategory(name) {
+        const n = name.toLowerCase();
+        
+        if (n.includes('ga') || n.includes('analytics') || n.includes('_hj') || n.includes('utm') || 
+            n.includes('amplitude') || n.includes('mixpanel') || n.includes('segment')) {
+            return 'analytics';
+        }
+        if (n.includes('fb') || n.includes('ad') || n.includes('marketing') || n.includes('pixel') ||
+            n.includes('doubleclick') || n.includes('linkedin') || n.includes('twitter')) {
+            return 'marketing';
+        }
+        if (n.includes('lang') || n.includes('locale') || n.includes('preference') || n.includes('settings') ||
+            n.includes('theme') || n.includes('currency')) {
+            return 'functionality';
+        }
+        if (n.includes('session') || n.includes('csrf') || n.includes('xsrf') || n.includes('auth') ||
+            n.includes('token') || n.includes('security') || n.includes('wf_') || n.includes('webflow')) {
+            return 'necessary';
+        }
+        
+        return 'functionality';
+    }
+
+    guessPurpose(name) {
+        const n = name.toLowerCase();
+        
+        if (n.includes('ga')) return 'Google Analytics Tracking';
+        if (n.includes('fb')) return 'Facebook Tracking';
+        if (n.includes('ad')) return 'Werbung & Marketing';
+        if (n.includes('session')) return 'Session Management';
+        if (n.includes('lang')) return 'Spracheinstellung';
+        if (n.includes('wf') || n.includes('webflow')) return 'Webflow Platform';
+        if (n.includes('analytics')) return 'Analyse & Tracking';
+        
+        return 'Website-Funktionalität';
+    }
+
+    guessTool(name) {
+        const n = name.toLowerCase();
+        
+        if (n.includes('ga') || n.includes('_gid') || n.includes('_gat') || n.includes('__utm')) return 'Google Analytics';
+        if (n.includes('fb') || n.includes('_fbp')) return 'Facebook';
+        if (n.includes('_hj')) return 'Hotjar';
+        if (n.includes('wf_') || n.includes('webflow')) return 'Webflow';
+        if (n.includes('stripe')) return 'Stripe';
+        if (n.includes('amplitude')) return 'Amplitude';
+        if (n.includes('mixpanel') || n.includes('mp_')) return 'Mixpanel';
+        if (n.includes('segment') || n.includes('ajs_')) return 'Segment';
+        if (n.includes('linkedin') || n.includes('li_')) return 'LinkedIn';
+        
+        return null;
+    }
+
+    getToolCategory(tool) {
+        const marketingTools = ['Google Ads', 'Google DoubleClick', 'Facebook', 'Facebook Pixel', 'LinkedIn', 'Twitter/X', 'YouTube'];
+        const analyticsTools = ['Google Analytics', 'Hotjar', 'Segment', 'Amplitude', 'Mixpanel', 'Google Tag Manager'];
+        const necessaryTools = ['Webflow', 'Stripe', 'PHP', 'Java', 'ASP.NET', 'Security'];
+        
+        if (marketingTools.includes(tool)) return 'marketing';
+        if (analyticsTools.includes(tool)) return 'analytics';
+        if (necessaryTools.includes(tool)) return 'necessary';
+        
+        return 'functionality';
+    }
+
+    getDomain(url) {
+        try {
+            const urlObj = new URL(url);
+            return urlObj.hostname;
+        } catch {
+            return 'unknown';
+        }
+    }
+
+    generateCookieListHTML(category) {
+        const cookies = this.scannedCookies[category];
+        
+        if (cookies.length === 0) {
+            return '<p style="color: #718096; font-size: 13px; text-align: center; padding: 20px;">Keine Cookies in dieser Kategorie gefunden.</p>';
+        }
+
+        let html = `<div class="cookie-details">`;
+        html += `<div style="margin-bottom: 10px; color: #4a5568; font-weight: 600;">Gefundene Cookies & Scripts: <span class="cookie-count">${cookies.length}</span></div>`;
+        
+        cookies.forEach(cookie => {
+            html += `
+                <div class="cookie-item">
+                    <div style="flex: 1;">
+                        <div class="cookie-name">${cookie.name}</div>
+                        <div class="cookie-info">${cookie.duration} • ${cookie.type}</div>
+                        <div class="cookie-purpose">${cookie.purpose}</div>
+                        ${cookie.tool ? `<div class="cookie-source">🔧 ${cookie.tool}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        return html;
+    }
+
+    getCategoryDescription(category) {
+        const count = this.scannedCookies[category].length;
+        const descriptions = {
+            necessary: `Diese Cookies und Scripts sind essentiell für die Funktion der Website.`,
+            functionality: `Diese Elemente ermöglichen erweiterte Funktionen und verbessern die Nutzer-Erfahrung.`,
+            analytics: `Diese Tools helfen uns, die Website-Nutzung zu verstehen und zu optimieren.`,
+            marketing: `Diese Technologien werden für Werbung und Marketing verwendet.`
+        };
+        return `${descriptions[category]} <strong>Aktuell ${count} Element(e) erkannt.</strong>`;
+    }
+
+    getToolsSummary() {
+        if (this.detectedTools.size === 0) {
+            return '<div class="scan-status">✅ Keine externen Tracking-Tools erkannt</div>';
+        }
+        
+        const tools = Array.from(this.detectedTools).sort();
+        let html = '<div class="scan-status">🔍 Deep Scan: Folgende Tools wurden erkannt:<br><br>';
+        tools.forEach(tool => {
+            html += `<span style="background: white; padding: 4px 8px; margin: 2px; display: inline-block; border-radius: 4px; font-size: 11px;">🛠️ ${tool}</span> `;
+        });
+        html += '</div>';
+        return html;
+    }
+}
+
+// Scanner initialisieren
+const scanner = new DeepCookieScanner();
+
+// Initial Deep Scan
+setTimeout(async () => {
+    await scanner.performDeepScan();
+    console.log('🍪 Deep Cookie-Scan abgeschlossen:', scanner.scannedCookies);
+    console.log('🔧 Erkannte Tools:', Array.from(scanner.detectedTools));
+}, 1500);
+
+// Periodischer Re-Scan für dynamisch geladene Cookies
+setInterval(async () => {
+    scanner.scannedCookies = {
+        necessary: [],
+        functionality: [],
+        analytics: [],
+        marketing: []
+    };
+    await scanner.performDeepScan();
+}, CONFIG.deepScanInterval);
+
+// ===================================
+// COOKIE CONSENT KONFIGURATION
+// ===================================
+CookieConsent.run({
+    guiOptions: {
+        consentModal: {
+            layout: "box",
+            position: "bottom left",
+            equalWeightButtons: true,
+            flipButtons: false
+        },
+        preferencesModal: {
+            layout: "box",
+            position: "right",
+            equalWeightButtons: true,
+            flipButtons: true
+        }
+    },
+    
+    categories: {
+        necessary: {
+            readOnly: true,
+            enabled: true
+        },
+        functionality: {},
+        analytics: {
+            autoClear: {
+                cookies: [
+                    { name: /^(_ga|_gid|_gat|__utm|_hj|ajs_|amplitude_|mp_)/ }
+                ]
+            }
+        },
+        marketing: {
+            autoClear: {
+                cookies: [
+                    { name: /^(fr|_fbp|_fbc|IDE|__gads|li_|YSC)/ }
+                ]
+            }
+        }
+    },
+    
+    language: {
+        default: "de",
+        autoDetect: "browser",
+        translations: {
+            de: {
+                consentModal: {
+                    title: "🍪 Cookie-Einstellungen",
+                    description: "Wir verwenden Cookies und ähnliche Technologien. Unser Deep Scanner hat alle verwendeten Tools automatisch erkannt und kategorisiert.",
+                    acceptAllBtn: "Alle akzeptieren",
+                    acceptNecessaryBtn: "Nur notwendige",
+                    showPreferencesBtn: "Details anzeigen",
+                    footer: `<a href="${CONFIG.privacyPolicyUrl}">Datenschutz</a>\n<a href="${CONFIG.termsUrl}">Impressum</a>`
+                },
+                preferencesModal: {
+                    title: "🔍 Deep Scan: Cookie-Einstellungen",
+                    acceptAllBtn: "Alle akzeptieren",
+                    acceptNecessaryBtn: "Nur notwendige",
+                    savePreferencesBtn: "Speichern",
+                    closeIconLabel: "Schließen",
+                    serviceCounterLabel: "Dienste",
+                    sections: [
+                        {
+                            title: "Automatische Cookie-Erkennung",
+                            description: "Unser Deep Scanner hat Ihre Website analysiert und alle Cookies, Scripts und Tracking-Tools automatisch erkannt.<br><br>" + scanner.getToolsSummary()
+                        },
+                        {
+                            title: "✅ Notwendig <span class='pm__badge'>Immer aktiv</span>",
+                            description: scanner.getCategoryDescription('necessary') + '<br><br>' + scanner.generateCookieListHTML('necessary'),
+                            linkedCategory: "necessary"
+                        },
+                        {
+                            title: "⚙️ Funktional",
+                            description: scanner.getCategoryDescription('functionality') + '<br><br>' + scanner.generateCookieListHTML('functionality'),
+                            linkedCategory: "functionality"
+                        },
+                        {
+                            title: "📊 Analyse",
+                            description: scanner.getCategoryDescription('analytics') + '<br><br>' + scanner.generateCookieListHTML('analytics'),
+                            linkedCategory: "analytics"
+                        },
+                        {
+                            title: "🎯 Marketing",
+                            description: scanner.getCategoryDescription('marketing') + '<br><br>' + scanner.generateCookieListHTML('marketing'),
+                            linkedCategory: "marketing"
+                        },
+                        {
+                            title: "ℹ️ Weitere Infos",
+                            description: `Details in unserer <a class="cc__link" href="${CONFIG.privacyPolicyUrl}">Datenschutzerklärung</a>. Der Deep Scanner aktualisiert sich automatisch.`
+                        }
+                    ]
+                }
+            }
+        }
+    },
+
+    onConsent: function({cookie}) {
+        console.log('✅ Cookie-Zustimmung:', cookie.categories);
+        setTimeout(async () => await scanner.performDeepScan(), 2000);
+    }
+});
+
+// ===================================
+// COOKIE-EINSTELLUNGEN BUTTON
+// ===================================
+function createCookieSettingsButton() {
+    if (document.getElementById('cookie-settings-btn')) return;
+    
+    const button = document.createElement('button');
+    button.id = 'cookie-settings-btn';
+    button.innerHTML = '🍪 Cookie-Einstellungen';
+    button.setAttribute('aria-label', 'Cookie-Einstellungen öffnen');
+    button.setAttribute('type', 'button');
+    
+    button.style.cssText = `
+        position: fixed !important;
+        bottom: 20px !important;
+        left: 20px !important;
+        z-index: 2147483647 !important;
+        background: #2d3748 !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 12px 20px !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+        cursor: pointer !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.3s ease !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+    `;
+    
+    button.addEventListener('mouseenter', () => {
+        button.style.background = '#1a202c';
+        button.style.transform = 'translateY(-2px)';
+    });
+    
+    button.addEventListener('mouseleave', () => {
+        button.style.background = '#2d3748';
+        button.style.transform = 'translateY(0)';
+    });
+    
+    button.addEventListener('click', async function() {
+        // Re-scan vor Öffnen
+        await scanner.performDeepScan();
+        CookieConsent.showPreferences();
+    });
+    
+    document.body.appendChild(button);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', createCookieSettingsButton);
+} else {
+    createCookieSettingsButton();
+}
+
+window.addEventListener('cc:onConsent', createCookieSettingsButton);
+
+// ===================================
+// DEVELOPER TOOLS
+// ===================================
+window.deepScanCookies = async () => {
+    await scanner.performDeepScan();
+    console.table(scanner.scannedCookies);
+    console.log('🔧 Erkannte Tools:', Array.from(scanner.detectedTools));
+    return {
+        cookies: scanner.scannedCookies,
+        tools: Array.from(scanner.detectedTools),
+        scripts: Array.from(scanner.detectedScripts)
+    };
+};
+
+window.resetCookieConsent = () => {
+    CookieConsent.reset(true);
+    location.reload();
+};
+
+console.log('🍪 Cookie Consent mit Deep Scanner geladen!');
+console.log('💡 window.deepScanCookies() - Deep Scan starten');
+console.log('💡 window.resetCookieConsent() - Zurücksetzen');
+
+</script>
