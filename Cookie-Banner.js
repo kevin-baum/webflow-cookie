@@ -40,10 +40,10 @@
         style.textContent = `
             .icon-text{display:flex!important;align-items:center!important;gap:8px!important}
             .icon-text svg{width:16px!important;height:16px!important;flex-shrink:0!important;color:#000!important}
-            #cookie-settings-btn{position:fixed;bottom:20px;left:20px;background:#2d3748;color:#fff;border:none;border-radius:8px;padding:12px 20px;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,.1);z-index:2147483647!important;transition:all .3s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex!important;align-items:center!important;gap:8px!important}
-            #cookie-settings-btn svg{width:16px!important;height:16px!important;color:#fff!important}
-            #cookie-settings-btn:hover{background:#1a202c;transform:translateY(-2px);box-shadow:0 6px 12px rgba(0,0,0,.15)}
-            @media (max-width:768px){#cookie-settings-btn{bottom:10px;left:10px;padding:10px 16px;font-size:13px}}
+            #cookie-settings-btn{position:fixed;bottom:20px;left:20px;background:#2d3748;color:#fff;border:none;border-radius:50%;padding:14px;font-size:14px;font-weight:500;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,.1);z-index:2147483647!important;transition:all .3s ease;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex!important;align-items:center!important;justify-content:center!important;width:48px;height:48px}
+            #cookie-settings-btn svg{width:24px!important;height:24px!important;color:#fff!important}
+            #cookie-settings-btn:hover{background:#1a202c;transform:translateY(-2px) rotate(20deg);box-shadow:0 6px 12px rgba(0,0,0,.15)}
+            @media (max-width:768px){#cookie-settings-btn{bottom:10px;left:10px;width:44px;height:44px;padding:12px}}
             .pm__badge{background:#48bb78;color:#fff;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-left:8px}
             .cookie-list{background:#f7fafc;border-radius:6px;padding:14px;margin:12px 0;font-size:13px;border:1px solid #e2e8f0}
             .cookie-item{background:#fff;border-left:4px solid #4299e1;border-radius:6px;padding:12px;margin:10px 0;box-shadow:0 1px 3px rgba(0,0,0,.1)}
@@ -241,136 +241,179 @@
         var scripts = document.getElementsByTagName('script');
         var detectedTools = [];
         
+        // Prüfe zuerst Window-Objekte (am zuverlässigsten)
+        if (typeof window.Webflow !== 'undefined') {
+            console.log('  ✓ Webflow erkannt über window.Webflow');
+            detectedTools.push('Webflow');
+            this.tools.add('Webflow');
+            this.addToolCookie('Webflow', 'necessary', 'Webflow Platform', 'Webflow Website-Platform');
+        }
+        
+        if (typeof window.elfsight !== 'undefined' || window.location.href.indexOf('elfsight') !== -1) {
+            console.log('  ✓ Elfsight erkannt über window.elfsight');
+            detectedTools.push('Elfsight');
+            this.tools.add('Elfsight');
+            this.addToolCookie('Elfsight', 'functionality', 'Elfsight Widgets', 'Elfsight Widget-Plattform');
+        }
+        
+        if (typeof window.gtag !== 'undefined' || typeof window.ga !== 'undefined') {
+            console.log('  ✓ Google Analytics erkannt über window Objekt');
+            detectedTools.push('Google Analytics');
+            this.tools.add('Google Analytics');
+        }
+        
+        if (typeof window.fbq !== 'undefined') {
+            console.log('  ✓ Facebook Pixel erkannt über window.fbq');
+            detectedTools.push('Facebook');
+            this.tools.add('Facebook');
+        }
+        
+        // Scanne alle Script-Tags
         for (var i = 0; i < scripts.length; i++) {
             var src = scripts[i].src || '';
             var innerHTML = scripts[i].innerHTML || '';
+            var srcLower = src.toLowerCase();
+            var innerLower = innerHTML.toLowerCase();
             
             // Webflow Detection
-            if (src.indexOf('webflow.com') !== -1 || innerHTML.indexOf('Webflow') !== -1) {
+            if (srcLower.indexOf('webflow') !== -1 || innerLower.indexOf('webflow') !== -1) {
                 if (!this.tools.has('Webflow')) {
+                    console.log('  ✓ Webflow erkannt in Script: ' + (src.substring(0, 50) || 'inline'));
                     detectedTools.push('Webflow');
                     this.tools.add('Webflow');
-                    // Füge Webflow Cookie hinzu, falls noch nicht vorhanden
-                    var hasWebflow = false;
-                    for (var j = 0; j < this.cookies.necessary.length; j++) {
-                        if (this.cookies.necessary[j].tool === 'Webflow') {
-                            hasWebflow = true;
-                            break;
-                        }
-                    }
-                    if (!hasWebflow) {
-                        this.cookies.necessary.push({
-                            name: 'webflow_detected',
-                            purpose: 'Webflow Platform',
-                            duration: 'Session',
-                            category: 'necessary',
-                            type: 'Script',
-                            tool: 'Webflow',
-                            desc: 'Webflow Platform - Erkannt durch Script-Analyse'
-                        });
-                    }
+                    this.addToolCookie('Webflow', 'necessary', 'Webflow Platform', 'Webflow Website-Platform');
                 }
             }
             
             // Elfsight Detection
-            if (src.indexOf('elfsight.com') !== -1 || src.indexOf('eapps.elfsight.com') !== -1 || 
-                innerHTML.indexOf('elfsight') !== -1 || innerHTML.indexOf('Elfsight') !== -1) {
+            if (srcLower.indexOf('elfsight') !== -1 || srcLower.indexOf('eapps.elfsight') !== -1 || 
+                innerLower.indexOf('elfsight') !== -1) {
                 if (!this.tools.has('Elfsight')) {
+                    console.log('  ✓ Elfsight erkannt in Script: ' + (src.substring(0, 50) || 'inline'));
                     detectedTools.push('Elfsight');
                     this.tools.add('Elfsight');
-                    // Füge Elfsight Cookie hinzu
-                    var hasElfsight = false;
-                    for (var j = 0; j < this.cookies.functionality.length; j++) {
-                        if (this.cookies.functionality[j].tool === 'Elfsight') {
-                            hasElfsight = true;
-                            break;
-                        }
-                    }
-                    if (!hasElfsight) {
-                        this.cookies.functionality.push({
-                            name: 'elfsight_detected',
-                            purpose: 'Elfsight Widgets',
-                            duration: '1 Jahr',
-                            category: 'functionality',
-                            type: 'Script',
-                            tool: 'Elfsight',
-                            desc: 'Elfsight Widgets - Erkannt durch Script-Analyse'
-                        });
-                    }
+                    this.addToolCookie('Elfsight', 'functionality', 'Elfsight Widgets', 'Elfsight Widget-Plattform');
                 }
             }
             
             // Google Analytics Detection
-            if (src.indexOf('google-analytics.com') !== -1 || src.indexOf('googletagmanager.com') !== -1 ||
-                innerHTML.indexOf('gtag') !== -1 || innerHTML.indexOf('GoogleAnalytics') !== -1) {
+            if (srcLower.indexOf('google-analytics') !== -1 || srcLower.indexOf('googletagmanager') !== -1 ||
+                innerLower.indexOf('gtag') !== -1 || innerLower.indexOf('ga(') !== -1) {
                 if (!this.tools.has('Google Analytics')) {
+                    console.log('  ✓ Google Analytics erkannt in Script');
                     detectedTools.push('Google Analytics');
                     this.tools.add('Google Analytics');
                 }
             }
             
             // Facebook Pixel Detection
-            if (src.indexOf('facebook.net') !== -1 || innerHTML.indexOf('fbq') !== -1) {
+            if (srcLower.indexOf('facebook') !== -1 || srcLower.indexOf('fbevents') !== -1 || 
+                innerLower.indexOf('fbq(') !== -1) {
                 if (!this.tools.has('Facebook')) {
-                    detectedTools.push('Facebook Pixel');
+                    console.log('  ✓ Facebook Pixel erkannt in Script');
+                    detectedTools.push('Facebook');
                     this.tools.add('Facebook');
                 }
             }
             
             // YouTube Detection
-            if (src.indexOf('youtube.com') !== -1 || src.indexOf('ytimg.com') !== -1) {
+            if (srcLower.indexOf('youtube') !== -1 || srcLower.indexOf('ytimg') !== -1) {
                 if (!this.tools.has('YouTube')) {
+                    console.log('  ✓ YouTube erkannt in Script');
                     detectedTools.push('YouTube');
                     this.tools.add('YouTube');
                 }
             }
             
             // Hotjar Detection
-            if (src.indexOf('hotjar.com') !== -1 || innerHTML.indexOf('hotjar') !== -1) {
+            if (srcLower.indexOf('hotjar') !== -1 || innerLower.indexOf('hotjar') !== -1) {
                 if (!this.tools.has('Hotjar')) {
+                    console.log('  ✓ Hotjar erkannt in Script');
                     detectedTools.push('Hotjar');
                     this.tools.add('Hotjar');
                 }
             }
         }
         
-        // Prüfe auch iFrames
+        // Prüfe iFrames
         var iframes = document.getElementsByTagName('iframe');
         for (var i = 0; i < iframes.length; i++) {
-            var src = iframes[i].src || '';
-            if (src.indexOf('elfsight') !== -1 && !this.tools.has('Elfsight')) {
-                detectedTools.push('Elfsight');
-                this.tools.add('Elfsight');
-                var hasElfsight = false;
-                for (var j = 0; j < this.cookies.functionality.length; j++) {
-                    if (this.cookies.functionality[j].tool === 'Elfsight') {
-                        hasElfsight = true;
-                        break;
-                    }
-                }
-                if (!hasElfsight) {
-                    this.cookies.functionality.push({
-                        name: 'elfsight_iframe',
-                        purpose: 'Elfsight Widget (iFrame)',
-                        duration: '1 Jahr',
-                        category: 'functionality',
-                        type: 'iFrame',
-                        tool: 'Elfsight',
-                        desc: 'Elfsight Widget - Erkannt durch iFrame-Analyse'
-                    });
+            var src = (iframes[i].src || '').toLowerCase();
+            
+            if (src.indexOf('elfsight') !== -1) {
+                if (!this.tools.has('Elfsight')) {
+                    console.log('  ✓ Elfsight erkannt in iFrame: ' + iframes[i].src.substring(0, 50));
+                    detectedTools.push('Elfsight');
+                    this.tools.add('Elfsight');
+                    this.addToolCookie('Elfsight', 'functionality', 'Elfsight Widget (iFrame)', 'Elfsight Widget eingebettet');
                 }
             }
-            if (src.indexOf('youtube.com') !== -1 && !this.tools.has('YouTube')) {
-                detectedTools.push('YouTube');
-                this.tools.add('YouTube');
+            
+            if (src.indexOf('youtube') !== -1 || src.indexOf('youtu.be') !== -1) {
+                if (!this.tools.has('YouTube')) {
+                    console.log('  ✓ YouTube erkannt in iFrame');
+                    detectedTools.push('YouTube');
+                    this.tools.add('YouTube');
+                }
             }
         }
         
+        // Prüfe Meta-Tags und Link-Tags
+        var links = document.getElementsByTagName('link');
+        for (var i = 0; i < links.length; i++) {
+            var href = (links[i].href || '').toLowerCase();
+            if (href.indexOf('webflow') !== -1) {
+                if (!this.tools.has('Webflow')) {
+                    console.log('  ✓ Webflow erkannt in Link-Tag');
+                    detectedTools.push('Webflow');
+                    this.tools.add('Webflow');
+                    this.addToolCookie('Webflow', 'necessary', 'Webflow Platform', 'Webflow Website-Platform');
+                }
+            }
+        }
+        
+        // Prüfe auch den HTML-Kommentare
+        var htmlContent = document.documentElement.outerHTML.toLowerCase();
+        if (htmlContent.indexOf('webflow') !== -1 && !this.tools.has('Webflow')) {
+            console.log('  ✓ Webflow erkannt im HTML-Code');
+            detectedTools.push('Webflow');
+            this.tools.add('Webflow');
+            this.addToolCookie('Webflow', 'necessary', 'Webflow Platform', 'Webflow Website-Platform');
+        }
+        
+        if (htmlContent.indexOf('elfsight') !== -1 && !this.tools.has('Elfsight')) {
+            console.log('  ✓ Elfsight erkannt im HTML-Code');
+            detectedTools.push('Elfsight');
+            this.tools.add('Elfsight');
+            this.addToolCookie('Elfsight', 'functionality', 'Elfsight Widgets', 'Elfsight Widget-Plattform');
+        }
+        
         if (detectedTools.length > 0) {
-            console.log('  ✓ Durch Script-Analyse erkannt: ' + detectedTools.join(', '));
+            console.log('  📦 Insgesamt erkannt: ' + detectedTools.join(', '));
         } else {
             console.log('  ℹ Keine zusätzlichen Tools durch Script-Analyse erkannt');
         }
+    };
+    
+    CookieScanner.prototype.addToolCookie = function(tool, category, name, description) {
+        // Prüfe ob bereits vorhanden
+        var list = this.cookies[category];
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].tool === tool) {
+                return; // Bereits vorhanden
+            }
+        }
+        
+        // Füge hinzu
+        this.cookies[category].push({
+            name: name.toLowerCase().replace(/\s/g, '_'),
+            purpose: description,
+            duration: category === 'necessary' ? 'Session' : '1 Jahr',
+            category: category,
+            type: 'Plattform',
+            tool: tool,
+            desc: description
+        });
     };
 
     CookieScanner.prototype.analyze = function(name, type) {
@@ -535,9 +578,18 @@
         loadCookieConsent(() => {
             var scanner = new CookieScanner();
             
-            // Initial Scan SOFORT durchführen
-            console.log('🔍 Initial Scan...');
-            scanner.scan();
+            // Initial Scan mit kleiner Verzögerung (damit alle Scripts geladen sind)
+            console.log('🔍 Warte auf vollständiges Laden der Seite...');
+            setTimeout(function() {
+                console.log('🔍 Starte Initial Scan...');
+                scanner.scan();
+            }, 500);
+            
+            // Zusätzlicher Scan nach 2 Sekunden (für langsame Scripts)
+            setTimeout(function() {
+                console.log('🔍 Deep Scan...');
+                scanner.scan();
+            }, 2000);
 
             // Periodic Re-Scan
             if (CONFIG.deepScanInterval > 0) {
@@ -668,8 +720,9 @@
                 if (document.getElementById('cookie-settings-btn')) return;
                 var btn = document.createElement('button');
                 btn.id = 'cookie-settings-btn';
-                btn.innerHTML = ICONS.cookie + '<span>Cookie-Einstellungen</span>';
+                btn.innerHTML = ICONS.cookie;
                 btn.setAttribute('aria-label', 'Cookie-Einstellungen');
+                btn.setAttribute('title', 'Cookie-Einstellungen');
                 btn.onclick = function() {
                     updateModalContent();
                     window.CookieConsent.showPreferences();
