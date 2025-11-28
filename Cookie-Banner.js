@@ -97,14 +97,46 @@
         this.scanCount = 0;
         
         this.database = {
+            // Webflow
             'wf_': { purpose: 'Webflow Session', duration: 'Session', category: 'necessary', tool: 'Webflow' },
             'webflow': { purpose: 'Webflow Platform', duration: '1 Jahr', category: 'necessary', tool: 'Webflow' },
+            
+            // Elfsight
+            'elfsight': { purpose: 'Elfsight Widget', duration: '1 Jahr', category: 'functionality', tool: 'Elfsight' },
+            'elf': { purpose: 'Elfsight Tracking', duration: '1 Jahr', category: 'functionality', tool: 'Elfsight' },
+            
+            // Google Analytics
             '_ga': { purpose: 'Analytics Tracking', duration: '2 Jahre', category: 'analytics', tool: 'Google Analytics' },
             '_gid': { purpose: 'Analytics Session', duration: '24 Std', category: 'analytics', tool: 'Google Analytics' },
             '_gat': { purpose: 'Analytics Throttle', duration: '1 Min', category: 'analytics', tool: 'Google Analytics' },
+            '__utma': { purpose: 'Analytics User', duration: '2 Jahre', category: 'analytics', tool: 'Google Analytics' },
+            '__utmb': { purpose: 'Analytics Session', duration: '30 Min', category: 'analytics', tool: 'Google Analytics' },
+            '__utmc': { purpose: 'Analytics Session', duration: 'Session', category: 'analytics', tool: 'Google Analytics' },
+            '__utmz': { purpose: 'Analytics Traffic', duration: '6 Monate', category: 'analytics', tool: 'Google Analytics' },
+            
+            // Google Tag Manager
+            '_gcl_': { purpose: 'Google Click Identifier', duration: '90 Tage', category: 'marketing', tool: 'Google Tag Manager' },
+            
+            // Facebook
             '_fbp': { purpose: 'Facebook Pixel', duration: '90 Tage', category: 'marketing', tool: 'Facebook' },
             '_fbc': { purpose: 'Facebook Click', duration: '90 Tage', category: 'marketing', tool: 'Facebook' },
+            'fr': { purpose: 'Facebook Tracking', duration: '90 Tage', category: 'marketing', tool: 'Facebook' },
+            
+            // YouTube
+            'VISITOR_INFO1_LIVE': { purpose: 'YouTube Player', duration: '6 Monate', category: 'marketing', tool: 'YouTube' },
+            'YSC': { purpose: 'YouTube Session', duration: 'Session', category: 'marketing', tool: 'YouTube' },
+            
+            // Hotjar
+            '_hjSession': { purpose: 'Hotjar Session', duration: '30 Min', category: 'analytics', tool: 'Hotjar' },
+            '_hjIncludedInPageview': { purpose: 'Hotjar Pageview', duration: '30 Min', category: 'analytics', tool: 'Hotjar' },
+            
+            // Cookie Consent
             'cc_cookie': { purpose: 'Cookie Consent', duration: '6 Monate', category: 'necessary', tool: 'CookieConsent' },
+            
+            // Session/CSRF
+            'PHPSESSID': { purpose: 'PHP Session', duration: 'Session', category: 'necessary', tool: 'PHP' },
+            'csrf': { purpose: 'CSRF Protection', duration: 'Session', category: 'necessary', tool: 'Security' },
+            '_token': { purpose: 'Session Token', duration: 'Session', category: 'necessary', tool: 'Security' },
         };
     }
 
@@ -113,46 +145,64 @@
         this.cookies = { necessary: [], functionality: [], analytics: [], marketing: [] };
         this.tools.clear();
         
-        // Scanne Browser Cookies
+        console.log('🔍 Starte umfassenden Cookie-Scan...');
+        
+        // 1. Scanne Browser Cookies
         var cookieStr = document.cookie;
         if (cookieStr && cookieStr.length > 0) {
             var items = cookieStr.split(';');
+            console.log('📋 Gefundene Browser-Cookies: ' + items.length);
             for (var i = 0; i < items.length; i++) {
                 var item = items[i].trim();
                 if (item) {
-                    var name = item.split('=')[0];
+                    var parts = item.split('=');
+                    var name = parts[0].trim();
                     if (name) {
+                        console.log('  • Cookie: ' + name);
                         var data = this.analyze(name, 'Cookie');
                         this.cookies[data.category].push(data);
                         if (data.tool) this.tools.add(data.tool);
                     }
                 }
             }
+        } else {
+            console.log('📋 Keine Browser-Cookies gefunden');
         }
         
-        // Scanne LocalStorage
+        // 2. Scanne LocalStorage
         try {
+            console.log('💾 Scanne LocalStorage (' + localStorage.length + ' Einträge)...');
             for (var i = 0; i < localStorage.length; i++) {
                 var key = localStorage.key(i);
                 if (key) {
+                    console.log('  • LocalStorage: ' + key);
                     var data = this.analyze(key, 'LocalStorage');
                     this.cookies[data.category].push(data);
                     if (data.tool) this.tools.add(data.tool);
                 }
             }
-        } catch(e) {}
+        } catch(e) {
+            console.log('⚠️ LocalStorage-Zugriff blockiert');
+        }
         
-        // Scanne SessionStorage
+        // 3. Scanne SessionStorage
         try {
+            console.log('🔐 Scanne SessionStorage (' + sessionStorage.length + ' Einträge)...');
             for (var i = 0; i < sessionStorage.length; i++) {
                 var key = sessionStorage.key(i);
                 if (key) {
+                    console.log('  • SessionStorage: ' + key);
                     var data = this.analyze(key, 'SessionStorage');
                     this.cookies[data.category].push(data);
                     if (data.tool) this.tools.add(data.tool);
                 }
             }
-        } catch(e) {}
+        } catch(e) {
+            console.log('⚠️ SessionStorage-Zugriff blockiert');
+        }
+        
+        // 4. Erkenne Tools durch Script-Analyse
+        this.detectToolsFromScripts();
         
         // GARANTIERE mindestens 1 Cookie (Cookie Consent selbst)
         if (this.cookies.necessary.length === 0 && 
@@ -169,23 +219,198 @@
                 tool: 'CookieConsent',
                 desc: 'Speichert Ihre Cookie-Einstellungen für diese Website'
             });
+            this.tools.add('CookieConsent');
         }
         
         var total = this.cookies.necessary.length + this.cookies.functionality.length + 
                     this.cookies.analytics.length + this.cookies.marketing.length;
         
-        console.log('🔍 Scan #' + this.scanCount + ': ' + total + ' Cookies gefunden');
-        console.log('Necessary: ' + this.cookies.necessary.length);
-        console.log('Functionality: ' + this.cookies.functionality.length);
-        console.log('Analytics: ' + this.cookies.analytics.length);
-        console.log('Marketing: ' + this.cookies.marketing.length);
+        console.log('✅ Scan #' + this.scanCount + ' abgeschlossen');
+        console.log('📊 Insgesamt ' + total + ' Cookies/Storage-Einträge gefunden');
+        console.log('  ├─ Necessary: ' + this.cookies.necessary.length);
+        console.log('  ├─ Functionality: ' + this.cookies.functionality.length);
+        console.log('  ├─ Analytics: ' + this.cookies.analytics.length);
+        console.log('  └─ Marketing: ' + this.cookies.marketing.length);
+        console.log('🔧 Erkannte Tools: ' + Array.from(this.tools).join(', '));
         
         return this.cookies;
     };
 
+    CookieScanner.prototype.detectToolsFromScripts = function() {
+        console.log('🔎 Analysiere geladene Scripts...');
+        var scripts = document.getElementsByTagName('script');
+        var detectedTools = [];
+        
+        for (var i = 0; i < scripts.length; i++) {
+            var src = scripts[i].src || '';
+            var innerHTML = scripts[i].innerHTML || '';
+            
+            // Webflow Detection
+            if (src.indexOf('webflow.com') !== -1 || innerHTML.indexOf('Webflow') !== -1) {
+                if (!this.tools.has('Webflow')) {
+                    detectedTools.push('Webflow');
+                    this.tools.add('Webflow');
+                    // Füge Webflow Cookie hinzu, falls noch nicht vorhanden
+                    var hasWebflow = false;
+                    for (var j = 0; j < this.cookies.necessary.length; j++) {
+                        if (this.cookies.necessary[j].tool === 'Webflow') {
+                            hasWebflow = true;
+                            break;
+                        }
+                    }
+                    if (!hasWebflow) {
+                        this.cookies.necessary.push({
+                            name: 'webflow_detected',
+                            purpose: 'Webflow Platform',
+                            duration: 'Session',
+                            category: 'necessary',
+                            type: 'Script',
+                            tool: 'Webflow',
+                            desc: 'Webflow Platform - Erkannt durch Script-Analyse'
+                        });
+                    }
+                }
+            }
+            
+            // Elfsight Detection
+            if (src.indexOf('elfsight.com') !== -1 || src.indexOf('eapps.elfsight.com') !== -1 || 
+                innerHTML.indexOf('elfsight') !== -1 || innerHTML.indexOf('Elfsight') !== -1) {
+                if (!this.tools.has('Elfsight')) {
+                    detectedTools.push('Elfsight');
+                    this.tools.add('Elfsight');
+                    // Füge Elfsight Cookie hinzu
+                    var hasElfsight = false;
+                    for (var j = 0; j < this.cookies.functionality.length; j++) {
+                        if (this.cookies.functionality[j].tool === 'Elfsight') {
+                            hasElfsight = true;
+                            break;
+                        }
+                    }
+                    if (!hasElfsight) {
+                        this.cookies.functionality.push({
+                            name: 'elfsight_detected',
+                            purpose: 'Elfsight Widgets',
+                            duration: '1 Jahr',
+                            category: 'functionality',
+                            type: 'Script',
+                            tool: 'Elfsight',
+                            desc: 'Elfsight Widgets - Erkannt durch Script-Analyse'
+                        });
+                    }
+                }
+            }
+            
+            // Google Analytics Detection
+            if (src.indexOf('google-analytics.com') !== -1 || src.indexOf('googletagmanager.com') !== -1 ||
+                innerHTML.indexOf('gtag') !== -1 || innerHTML.indexOf('GoogleAnalytics') !== -1) {
+                if (!this.tools.has('Google Analytics')) {
+                    detectedTools.push('Google Analytics');
+                    this.tools.add('Google Analytics');
+                }
+            }
+            
+            // Facebook Pixel Detection
+            if (src.indexOf('facebook.net') !== -1 || innerHTML.indexOf('fbq') !== -1) {
+                if (!this.tools.has('Facebook')) {
+                    detectedTools.push('Facebook Pixel');
+                    this.tools.add('Facebook');
+                }
+            }
+            
+            // YouTube Detection
+            if (src.indexOf('youtube.com') !== -1 || src.indexOf('ytimg.com') !== -1) {
+                if (!this.tools.has('YouTube')) {
+                    detectedTools.push('YouTube');
+                    this.tools.add('YouTube');
+                }
+            }
+            
+            // Hotjar Detection
+            if (src.indexOf('hotjar.com') !== -1 || innerHTML.indexOf('hotjar') !== -1) {
+                if (!this.tools.has('Hotjar')) {
+                    detectedTools.push('Hotjar');
+                    this.tools.add('Hotjar');
+                }
+            }
+        }
+        
+        // Prüfe auch iFrames
+        var iframes = document.getElementsByTagName('iframe');
+        for (var i = 0; i < iframes.length; i++) {
+            var src = iframes[i].src || '';
+            if (src.indexOf('elfsight') !== -1 && !this.tools.has('Elfsight')) {
+                detectedTools.push('Elfsight');
+                this.tools.add('Elfsight');
+                var hasElfsight = false;
+                for (var j = 0; j < this.cookies.functionality.length; j++) {
+                    if (this.cookies.functionality[j].tool === 'Elfsight') {
+                        hasElfsight = true;
+                        break;
+                    }
+                }
+                if (!hasElfsight) {
+                    this.cookies.functionality.push({
+                        name: 'elfsight_iframe',
+                        purpose: 'Elfsight Widget (iFrame)',
+                        duration: '1 Jahr',
+                        category: 'functionality',
+                        type: 'iFrame',
+                        tool: 'Elfsight',
+                        desc: 'Elfsight Widget - Erkannt durch iFrame-Analyse'
+                    });
+                }
+            }
+            if (src.indexOf('youtube.com') !== -1 && !this.tools.has('YouTube')) {
+                detectedTools.push('YouTube');
+                this.tools.add('YouTube');
+            }
+        }
+        
+        if (detectedTools.length > 0) {
+            console.log('  ✓ Durch Script-Analyse erkannt: ' + detectedTools.join(', '));
+        } else {
+            console.log('  ℹ Keine zusätzlichen Tools durch Script-Analyse erkannt');
+        }
+    };
+
     CookieScanner.prototype.analyze = function(name, type) {
+        var nameLower = name.toLowerCase();
+        
+        // Exakte Suche zuerst
         for (var pattern in this.database) {
-            if (name.toLowerCase().indexOf(pattern.toLowerCase()) !== -1) {
+            if (nameLower === pattern.toLowerCase()) {
+                var info = this.database[pattern];
+                return {
+                    name: name,
+                    purpose: info.purpose,
+                    duration: info.duration,
+                    category: info.category,
+                    type: type,
+                    tool: info.tool,
+                    desc: info.purpose + ' - ' + info.tool
+                };
+            }
+        }
+        
+        // Teilübereinstimmung (beginnt mit...)
+        for (var pattern in this.database) {
+            if (nameLower.indexOf(pattern.toLowerCase()) === 0) {
+                var info = this.database[pattern];
+                return {
+                    name: name,
+                    purpose: info.purpose,
+                    duration: info.duration,
+                    category: info.category,
+                    type: type,
+                    tool: info.tool,
+                    desc: info.purpose + ' - ' + info.tool
+                };
+            }
+        }
+        
+        // Enthält-Suche
+        for (var pattern in this.database) {
+            if (nameLower.indexOf(pattern.toLowerCase()) !== -1) {
                 var info = this.database[pattern];
                 return {
                     name: name,
@@ -224,19 +449,30 @@
 
     CookieScanner.prototype.guessPurpose = function(name) {
         var n = name.toLowerCase();
-        if (n.indexOf('ga') !== -1) return 'Analytics';
-        if (n.indexOf('fb') !== -1) return 'Social Media';
-        if (n.indexOf('wf') !== -1) return 'Platform';
+        if (n.indexOf('_ga') !== -1 || n.indexOf('__utm') !== -1) return 'Analytics & Statistiken';
+        if (n.indexOf('_fb') !== -1) return 'Social Media Tracking';
+        if (n.indexOf('wf') === 0 || n.indexOf('webflow') !== -1) return 'Website-Platform';
+        if (n.indexOf('elf') !== -1 || n.indexOf('elfsight') !== -1) return 'Widget-Funktionalität';
+        if (n.indexOf('session') !== -1 || n.indexOf('sess') !== -1) return 'Sitzungsverwaltung';
+        if (n.indexOf('csrf') !== -1 || n.indexOf('token') !== -1) return 'Sicherheit';
+        if (n.indexOf('lang') !== -1 || n.indexOf('locale') !== -1) return 'Spracheinstellungen';
+        if (n.indexOf('consent') !== -1 || n.indexOf('cookie') !== -1) return 'Cookie-Einwilligung';
         return 'Website-Funktion';
     };
 
     CookieScanner.prototype.guessTool = function(name) {
         var n = name.toLowerCase();
-        if (n.indexOf('ga') !== -1) return 'Google Analytics';
-        if (n.indexOf('fb') !== -1) return 'Facebook';
-        if (n.indexOf('wf') !== -1) return 'Webflow';
+        if (n.indexOf('_ga') !== -1 || n.indexOf('_gid') !== -1 || n.indexOf('_gat') !== -1 || n.indexOf('__utm') !== -1) return 'Google Analytics';
+        if (n.indexOf('_gcl') !== -1 || n.indexOf('gtm') !== -1) return 'Google Tag Manager';
+        if (n.indexOf('_fb') !== -1 || n.indexOf('fr') === 0) return 'Facebook';
+        if (n.indexOf('wf') === 0 || n.indexOf('webflow') !== -1) return 'Webflow';
+        if (n.indexOf('elf') !== -1 || n.indexOf('elfsight') !== -1) return 'Elfsight';
+        if (n.indexOf('_hj') !== -1) return 'Hotjar';
         if (n.indexOf('cc_') !== -1) return 'CookieConsent';
-        return 'Unbekannt';
+        if (n.indexOf('ys') !== -1 || n.indexOf('visitor_info') !== -1) return 'YouTube';
+        if (n.indexOf('sess') !== -1 || n.indexOf('session') !== -1) return 'Session Management';
+        if (n.indexOf('csrf') !== -1 || n.indexOf('token') !== -1) return 'Security';
+        return 'Website';
     };
 
     CookieScanner.prototype.generateHTML = function(category) {
